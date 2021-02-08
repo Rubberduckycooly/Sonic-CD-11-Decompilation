@@ -1429,8 +1429,8 @@ void ParseScriptFile(char *scriptName, int scriptID)
     char scriptPath[0x40];
     StrCopy(scriptPath, "Data/Scripts/");
     StrAdd(scriptPath, scriptName);
-    FileInfo info;
-    if (LoadFile(scriptPath, &info)) {
+    if (LoadFile(scriptPath)) {
+        int readPos = cFile.info.readPos;
         objectScriptList[scriptID].mobile = true; // all parsed scripts will use the updated format, old format support is purely for pc bytecode
         int readMode                      = READMODE_NORMAL;
         int parseMode                     = PARSEMODE_SCOPELESS;
@@ -1590,7 +1590,7 @@ void ParseScriptFile(char *scriptName, int scriptID)
                                 ConvertIfWhileStatement(scriptText);
                                 if (ConvertSwitchStatement(scriptText)) {
                                     parseMode    = PARSEMODE_SWITCHREAD;
-                                    info.readPos = (int)GetFilePosition();
+                                    readPos = (int)GetFilePosition();
                                     switchDeep   = 0;
                                 }
                                 ConvertArithmaticSyntax(scriptText);
@@ -1626,7 +1626,7 @@ void ParseScriptFile(char *scriptName, int scriptID)
                         CheckCaseNumber(scriptText);
                     }
                     else {
-                        SetFilePosition(info.readPos);
+                        SetFilePosition(readPos);
                         parseMode  = PARSEMODE_FUNCTION;
                         int jPos   = jumpTableStack[jumpTableStackPos];
                         switchDeep = abs(jumpTableData[jPos + 1] - jumpTableData[jPos]) + 1;
@@ -1669,8 +1669,7 @@ void LoadBytecode(int stageListID, int scriptID)
         }
     }
 
-    FileInfo info;
-    if (LoadFile(scriptPath, &info)) {
+    if (LoadFile(scriptPath)) {
         byte fileBuffer = 0;
         int *scrData   = &scriptData[scriptCodePos];
         FileRead(&fileBuffer, 1);

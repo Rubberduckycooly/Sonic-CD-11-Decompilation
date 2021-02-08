@@ -46,25 +46,17 @@ struct FileInfo {
     byte eNybbleSwap;
 };
 
+struct File {
+    FileIO *handle;
+    FileInfo info;
+    byte fileBuffer[0x2000];
+    int actualFileSize;
+    int readSize;
+};
+
 extern char rsdkName[0x400];
 
-extern char fileName[0x100];
-extern byte fileBuffer[0x2000];
-extern int fileSize;
-extern int vFileSize;
-extern int readPos;
-extern int readSize;
-extern int bufferPosition;
-extern int virtualFileOffset;
-extern byte eStringPosA;
-extern byte eStringPosB;
-extern byte eStringNo;
-extern byte eNybbleSwap;
-extern char encryptionStringA[21];
-extern char encryptionStringB[13];
-
-extern FileIO *cFileHandle;
-extern FileIO *cFileHandleStream;
+extern File cFile;
 
 inline void CopyFilePath(char *dest, const char *src)
 {
@@ -80,63 +72,49 @@ inline void CopyFilePath(char *dest, const char *src)
 }
 bool CheckRSDKFile(const char *filePath);
 
-bool LoadFile(const char *filePath, FileInfo *fileInfo);
-inline bool CloseFile()
+bool LoadFile(const char *filePath, File *file = &cFile);
+inline bool CloseFile(File *file = &cFile)
 {
     int result = 0;
-    if (cFileHandle)
-        result = fClose(cFileHandle);
+    if (file->handle)
+        result = fClose(file->handle);
 
-    cFileHandle = NULL;
+    file->handle = NULL;
     return result;
 }
 
-void FileRead(void *dest, int size);
+size_t FileRead(void *dest, int size, File *file = &cFile);
 
-bool ParseVirtualFileSystem(FileInfo *fileInfo);
+bool ParseVirtualFileSystem(const char *filePath, File *file = &cFile);
 
-inline size_t FillFileBuffer()
+inline size_t FillFileBuffer(File *file = &cFile)
 {
-    if (readPos + 0x2000 <= fileSize)
-        readSize = 0x2000;
+    if (file->info.readPos + sizeof(file->fileBuffer) <= file->actualFileSize)
+        file->readSize = sizeof(file->fileBuffer);
     else 
-        readSize = fileSize - readPos;
+        file->readSize = file->actualFileSize - file->info.readPos;
 
-    size_t result = fRead(fileBuffer, 1u, readSize, cFileHandle);
-    readPos += readSize;
-    bufferPosition = 0;
+    size_t result = fRead(file->fileBuffer, 1u, file->readSize, file->handle);
+    file->info.readPos += file->readSize;
+    file->info.bufferPosition = 0;
     return result;
 }
 
-inline void GetFileInfo(FileInfo *fileInfo)
+inline void GetFileInfo(FileInfo *fileInfo, File *file = &cFile)
 {
-    StrCopy(fileInfo->fileName, fileName);
-    fileInfo->bufferPosition = bufferPosition;
-    fileInfo->readPos        = readPos - readSize;
-    fileInfo->fileSize       = fileSize;
-    fileInfo->virtualFileOffset = virtualFileOffset;
-    fileInfo->eStringPosA    = eStringPosA;
-    fileInfo->eStringPosB    = eStringPosB;
-    fileInfo->eStringNo      = eStringNo;
-    fileInfo->eNybbleSwap    = eNybbleSwap;
+    StrCopy(fileInfo->fileName, file->info.fileName);
+    fileInfo->bufferPosition = file->info.bufferPosition;
+    fileInfo->readPos        = file->info.readPos - file->readSize;
+    fileInfo->fileSize       = file->actualFileSize;
+    fileInfo->virtualFileOffset = file->info.virtualFileOffset;
+    fileInfo->eStringPosA    = file->info.eStringPosA;
+    fileInfo->eStringPosB    = file->info.eStringPosB;
+    fileInfo->eStringNo      = file->info.eStringNo;
+    fileInfo->eNybbleSwap    = file->info.eNybbleSwap;
 }
-void SetFileInfo(FileInfo *fileInfo);
-size_t GetFilePosition();
-void SetFilePosition(int newPos);
-bool ReachedEndOfFile();
-
-
-size_t FileRead2(FileInfo *info, void *dest, int size); // For Music Streaming
-inline bool CloseFile2()
-{
-    int result = 0;
-    if (cFileHandleStream)
-        result = fClose(cFileHandleStream);
-
-    cFileHandleStream = NULL;
-    return result;
-}
-size_t GetFilePosition2(FileInfo *info);
-void SetFilePosition2(FileInfo *info, int newPos);
+void SetFileInfo(FileInfo *fileInfo, File *file = &cFile);
+size_t GetFilePosition(File *file = &cFile);
+void SetFilePosition(int newPos, File *file = &cFile);
+bool ReachedEndOfFile(File *file = &cFile);
 
 #endif // !READER_H
